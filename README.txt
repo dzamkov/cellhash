@@ -1,0 +1,1 @@
+Cellhash is a 1d cellular automata simulator based on hashing.
