@@ -41,5 +41,12 @@ def CreateElementaryRuleSet(Num = 110):
         def Next(self, Left, Center, Right):
             # Get next state from table
             return self.RuleTable[(Left, Center, Right)]
+
+        def Print(self, State):
+            # Gets char representation of state
+            if State == self.OnState:
+                return "*"
+            else:
+                return " "
     rset = ElementaryRuleSet(Num)
     return rset
