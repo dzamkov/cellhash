@@ -24,6 +24,9 @@ class HashNode:
     is 2^Level. The size of the result is half that.
     """
 
+    def __init__(self):
+        pass
+
     def Compute(self, Simulator):
         """
         Computes the result of the node.
