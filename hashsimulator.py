@@ -1,3 +1,5 @@
+import simulator
+
 def ModularPower(Num, Pow, Mod):
     """
     Computes (Num ** Pow) % Mod really fast.
@@ -30,6 +32,11 @@ class HashNode:
     Result of the computations of a and b.
     """
 
+    Dim = (0, 0)
+    """
+    The size of this node in the form: (width, height).
+    """
+
     Level = 0
     """
     Level of the node. The size of the node in states
@@ -53,11 +60,12 @@ class HashNode:
             self.Compute(Simulator)
         return self.Result
 
-    def Write(self, Simulator, OffsetX, OffsetY, SizeX, SizeY, Surface):
+    def Children(self, Simulator):
         """
-        Draws the node on a surface.
+        Gets the set of children of this node including results and
+        their offsets. In the form: {(OffsetX, OffsetY, Node)}
         """
-        pass
+        return { }
 
     def Print(self, Simulator):
         """
@@ -76,16 +84,10 @@ class AtomicHashNode(HashNode):
         self.A = A
         self.B = B
         self.Level = 1
+        self.Dim = (2, 1)
 
     def Compute(self, Simulator):
         pass
-
-    def Write(self, Simulator, OffsetX, OffsetY, SizeX, SizeY, Surface):
-        if OffsetY < SizeY and OffsetY >= 0:
-            if OffsetX < SizeX and OffsetX >= 0:
-                Surface.Write(Simulator.RuleSet, OffsetX, OffsetY, self.A)
-            if OffsetX + 1 < SizeX and OffsetX + 1 >= 0:
-                Surface.Write(Simulator.RuleSet, OffsetX + 1, OffsetY, self.B)
 
     def Print(self, Simulator):
         rset = Simulator.RuleSet
@@ -102,11 +104,13 @@ class SimpleHashNode(HashNode):
         self.A = A
         self.B = B
         self.Level = 2
+        self.Dim = (4, 2)
 
-    def Write(self, Simulator, OffsetX, OffsetY, SizeX, SizeY, Surface):
-        self.A.Write(Simulator, OffsetX, OffsetY, SizeX, SizeY, Surface)
-        self.B.Write(Simulator, OffsetX + 2, OffsetY, SizeX, SizeY, Surface)
-        self.GetResult(Simulator).Write(Simulator, OffsetX + 1, OffsetY + 1, SizeX, SizeY, Surface)
+    def Children(self, Simulator):
+        return {
+            (0, 0, self.A),
+            (2, 0, self.B),
+            (1, 1, self.GetResult(Simulator))}
 
     def Compute(self, Simulator):
         rset = Simulator.RuleSet
@@ -120,53 +124,47 @@ class CompoundHashNode(HashNode):
     2.
     """
 
+    Center = None
+    NA = None
+    NB = None
+    ResA = None
+    ResB = None
+    ResCenter = None
+    ResNA = None
+    ResNB = None
+
     def __init__(self, A, B):
         HashNode.__init__(self)
         self.A = A
         self.B = B
         self.Level = A.Level + 1
+        self.Dim = (2 ** self.Level, 2 ** (self.Level - 1))
 
-    def Write(self, Simulator, OffsetX, OffsetY, SizeX, SizeY, Surface):
-        height = 2 ** (self.Level - 1)
-        size = height * 2
-        if OffsetX < SizeX and OffsetY < SizeY and OffsetX + size >= 0 and OffsetY + height >= 0:
-            center = Simulator.GetNode(self.A.B, self.B.A)
-            na = Simulator.GetNode(self.A.GetResult(Simulator), center.GetResult(Simulator))
-            nb = Simulator.GetNode(center.GetResult(Simulator), self.B.GetResult(Simulator))
-            result = self.GetResult(Simulator)
-            
-            self.A.Write(
-                Simulator, OffsetX, OffsetY,
-                SizeX, SizeY, Surface)
-            self.B.Write(
-                Simulator, OffsetX + height, OffsetY,
-                SizeX, SizeY, Surface)
-            center.Write(
-                Simulator, OffsetX + (height // 2),  OffsetY,
-                SizeX, SizeY, Surface)
-            na.Write(
-                Simulator, OffsetX + (height // 4),  OffsetY + (height // 4),
-                SizeX, SizeY, Surface)
-            nb.Write(
-                Simulator, OffsetX + height - (height // 4),  OffsetY + (height // 4),
-                SizeX, SizeY, Surface)
-            result.Write(
-                Simulator, OffsetX + (height // 2), OffsetY + (height // 2),
-                SizeX, SizeY, Surface)
-        pass
+    def Children(self, Simulator):
+        if self.Result == None:
+            self.Compute(Simulator)
+        width = self.Dim[0]
+        height = self.Dim[1]
+        return {
+            (0, 0, self.A),
+            (width // 4, 0, self.Center),
+            (width // 2, 0, self.B),
+            (width // 8, height // 4, self.NA),
+            ((width // 4) + (width // 8), height // 4, self.NB),
+            (width // 4, height // 2, self.Result)}
 
     def Compute(self, Simulator):
-        center = Simulator.GetNode(self.A.B, self.B.A)
-        resa = self.A.GetResult(Simulator)
-        resb = self.B.GetResult(Simulator)
-        rescenter = center.GetResult(Simulator)
-        na = Simulator.GetNode(resa, rescenter)
-        nb = Simulator.GetNode(rescenter, resb)
-        resna = na.GetResult(Simulator)
-        resnb = nb.GetResult(Simulator)
-        self.Result = Simulator.GetNode(resna, resnb)
+        self.Center = Simulator.GetNode(self.A.B, self.B.A)
+        self.ResA = self.A.GetResult(Simulator)
+        self.ResB = self.B.GetResult(Simulator)
+        self.ResCenter = self.Center.GetResult(Simulator)
+        self.NA = Simulator.GetNode(self.ResA, self.ResCenter)
+        self.NB = Simulator.GetNode(self.ResCenter, self.ResB)
+        self.ResNA = self.NA.GetResult(Simulator)
+        self.ResNB = self.NB.GetResult(Simulator)
+        self.Result = Simulator.GetNode(self.ResNA, self.ResNB)
 
-class HashSimulator:
+class HashSimulator(simulator.Simulator):
     """
     Cellular automata simulator using hashing.
     """
@@ -313,7 +311,36 @@ class HashSimulator:
             startinglevel = startinglevel + 1
             ss = ss // 2
         node = self.GetStartingNode(startinglevel, OffsetX - OffsetY - SizeY)
-        node.Write(self, -OffsetY - SizeY, -OffsetY, SizeX, SizeY, Surface)
+
+        # Subdivide nodes until atomic nodes are reached
+        nodes = {(-OffsetY - SizeY, -OffsetY, node)}
+        level = node.Level
+        while level > 1:
+            nnodes = set()
+            for n in nodes:
+                offx = n[0]
+                offy = n[1]
+                nn = n[2]
+                children = nn.Children(self)
+                for m in children:
+                    noffx = offx + m[0]
+                    noffy = offy + m[1]
+                    nnn = m[2]
+                    width = nnn.Dim[0]
+                    height = nnn.Dim[1]
+                    if noffx < SizeX and noffy < SizeY and noffx + width > 0 and noffy + height > 0:
+                        nnodes.add((noffx, noffy, nnn))
+            nodes = nnodes
+            level = level - 1
+
+        # Write those little buggers
+        rset = self.RuleSet
+        for n in nodes:
+            if n[0] >= 0:
+                Surface.Write(rset, n[0], n[1], n[2].A)
+            if n[0] + 1 < SizeX:
+                Surface.Write(rset, n[0] + 1, n[1], n[2].B)
+        pass
 
     def __Level(self, Level):
         """

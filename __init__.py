@@ -1,14 +1,31 @@
 if __name__ == "__main__":
     import hashsimulator
     import ruleset
-    import text
+    import textsurface
     import sys
-    rule110 = ruleset.CreateElementaryRuleSet(110)
-    startingpattern = [1]
-    backgroundpattern = [0]
-    sim = hashsimulator.HashSimulator(rule110, startingpattern, backgroundpattern)
-
-    t = text.TextSurface(70, 70)
-    sim.Write(-69, 0, 70, 70, t)
-    t.Output(sys.stdout)
+    rnum = int(input("rule number : "))
+    spat = input("starting pattern : ")
+    bpat = input("background pattern : ")
+    size = int(input("size : "))
+    offset = int(input("offset : "))
+    output = input("output file : ")
+    rule = ruleset.CreateElementaryRuleSet(rnum)
+    startingpattern = []
+    backgroundpattern = []
+    for c in spat:
+        if c == "0":
+            startingpattern.append(0)
+        else:
+            startingpattern.append(1)
+    for c in bpat:
+        if c == "0":
+            backgroundpattern.append(0)
+        else:
+            backgroundpattern.append(1)
+    sim = hashsimulator.HashSimulator(rule, startingpattern, backgroundpattern)
+    t = textsurface.TextSurface(size, size)
+    sim.Write(offset, 0, size, size, t)
+    t.Close()
+    t.OutputFile(output)
+    sim.PrintStatus()
     
