@@ -246,7 +246,7 @@ class HashSimulator(simulator.Simulator):
         """
         lsp = len(self.StartingPattern)
         lbp = len(self.BackgroundPattern)
-        if Offset >= lsp:
+        if Offset >= lsp or lsp < 1:
             return self.GetBackgroundNode(Level, Offset)
         size = 2 ** Level
         if Offset + size < 0:
